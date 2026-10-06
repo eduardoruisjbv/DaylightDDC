@@ -45,10 +45,10 @@ PROFILE_SCHEDULES = {
         {'time': '22:00', 'brightness': 34}, {'time': '00:00', 'brightness': 28}],
 }
 PROFILE_INFO = {
-    'natural': {'name': 'Natural', 'description': '84% no pico diurno e 12% à noite; com localização autorizada, acompanha nascer/pôr do sol e reduz suavemente em baixa radiação.'},
-    'curtains': {'name': 'Cortinas fechadas', 'description': 'Assume ambiente escuro: pico de 40% durante o dia, 35% e 28% à noite, mínimo de 12%; localização ajusta nascer/pôr do sol.'},
-    'apple_like': {'name': 'Apple-like (experimental)', 'description': 'Aproximação experimental por brilho e horário; não usa sensor ambiente nem muda a temperatura de cor.'},
-    'custom': {'name': 'Personalizado', 'description': 'Sua própria curva horária.'},
+    'natural': {'name': 'Natural', 'description': '84% daytime peak and 12% at night; with location enabled, follows local sunrise/sunset and gently dims in low solar radiation.'},
+    'curtains': {'name': 'Closed Curtains', 'description': 'Assumes a dark indoor environment: 40% daytime peak, 35% and 28% at night, 12% minimum; location adjusts sunrise/sunset.'},
+    'apple_like': {'name': 'Apple-like (experimental)', 'description': 'Experimental time-based brightness approximation; does not use an ambient light sensor or change color temperature.'},
+    'custom': {'name': 'Custom', 'description': 'Your own brightness schedule.'},
 }
 DEFAULT = {'automatic': False, 'profile': 'natural',
     'schedule': copy.deepcopy(PROFILE_SCHEDULES['natural']),
@@ -71,7 +71,7 @@ XML = '''<node><interface name="io.github.daylightddc.Service">
 
 def minute(value):
     if not isinstance(value, str) or not re.fullmatch(r'(?:[01]\d|2[0-3]):[0-5]\d', value):
-        raise ValueError('Horário deve ter formato HH:MM (00:00–23:59).')
+        raise ValueError('Time must use the HH:MM format (00:00–23:59).')
     h, m = map(int, value.split(':'))
     return h * 60 + m
 
@@ -81,17 +81,17 @@ def validate(value):
     current = set(DEFAULT)
     previous = current - {'location_enabled'}
     if not isinstance(value, dict) or set(value) not in (legacy, previous, current):
-        raise ValueError('Configuração inválida; confira automatic, schedule, excluded_monitors, profile_schedules e location_enabled.')
+        raise ValueError('Invalid configuration; check automatic, schedule, excluded_monitors, profile_schedules and location_enabled.')
     if not isinstance(value['automatic'], bool):
-        raise ValueError('automatic deve ser booleano.')
+        raise ValueError('automatic must be a boolean.')
     profile = value.get('profile', 'natural')
     if profile not in PROFILE_SCHEDULES:
-        raise ValueError('Perfil de brilho desconhecido.')
+        raise ValueError('Unknown brightness profile.')
     schedules = copy.deepcopy(PROFILE_SCHEDULES)
     if 'profile_schedules' in value:
         supplied = value['profile_schedules']
         if not isinstance(supplied, dict) or set(supplied) != set(PROFILE_SCHEDULES):
-            raise ValueError('profile_schedules deve definir todos os perfis disponíveis.')
+            raise ValueError('profile_schedules must define all available profiles.')
         schedules = {name: validate_schedule(points) for name, points in supplied.items()}
     elif set(value) == legacy:
         # Keep the existing curve under its honest label instead of calling it Natural.
@@ -101,9 +101,9 @@ def validate(value):
     schedules[profile] = schedule
     if not isinstance(value['excluded_monitors'], list) or not all(
             isinstance(x, str) for x in value['excluded_monitors']):
-        raise ValueError('excluded_monitors deve ser uma lista de identificadores.')
+        raise ValueError('excluded_monitors must be a list of identifiers.')
     if 'location_enabled' in value and not isinstance(value['location_enabled'], bool):
-        raise ValueError('location_enabled deve ser booleano.')
+        raise ValueError('location_enabled must be a boolean.')
     return {'automatic': value['automatic'], 'profile': profile, 'schedule': schedule,
             'profile_schedules': schedules,
             'excluded_monitors': copy.deepcopy(value['excluded_monitors']),
@@ -112,17 +112,17 @@ def validate(value):
 
 def validate_schedule(points):
     if not isinstance(points, list) or not 2 <= len(points) <= 24:
-        raise ValueError('Use de 2 a 24 pontos na programação.')
+        raise ValueError('Use 2 to 24 schedule points.')
     times = []
     for point in points:
         if not isinstance(point, dict) or set(point) != {'time', 'brightness'}:
-            raise ValueError('Cada ponto deve conter time e brightness.')
+            raise ValueError('Each point must contain time and brightness.')
         times.append(minute(point['time']))
         level = point['brightness']
         if type(level) is not int or not 0 <= level <= 100:
-            raise ValueError('Brilho deve ser um inteiro entre 0 e 100.')
+            raise ValueError('Brightness must be an integer between 0 and 100.')
     if len(set(times)) != len(times):
-        raise ValueError('Horários não podem se repetir.')
+        raise ValueError('Times must not repeat.')
     return copy.deepcopy(points)
 
 
@@ -133,7 +133,7 @@ def target(schedule, now):
     for (a, av), (b, bv) in zip(extended, extended[1:]):
         if a <= current < b:
             return round(av + (bv - av) * (current - a) / (b - a))
-    raise ValueError('Programação inválida.')
+    raise ValueError('Invalid schedule.')
 
 
 def solar_schedule(profile, weather, base_schedule):
@@ -198,7 +198,7 @@ def ddc(*args):
     result = subprocess.run(['ddcutil', *map(str, args)], capture_output=True,
                             text=True, timeout=20, env={**os.environ, 'LC_ALL': 'C'})
     if result.returncode:
-        raise RuntimeError((result.stderr or result.stdout).strip()[:600] or 'ddcutil falhou.')
+        raise RuntimeError((result.stderr or result.stdout).strip()[:600] or 'ddcutil failed.')
     return result.stdout
 
 
@@ -220,7 +220,7 @@ class Service:
             self.config = validate(json.loads(CONFIG.read_text())) if CONFIG.exists() else copy.deepcopy(DEFAULT)
         except (OSError, ValueError, TypeError) as exc:
             self.config = copy.deepcopy(DEFAULT)
-            self.error = f'Configuração ignorada: {exc}'
+            self.error = f'Configuration ignored: {exc}'
         self.monitors = []
         self.connection = None
         self.busy = False
@@ -254,15 +254,15 @@ class Service:
 
     def state(self):
         if not self.config['location_enabled']:
-            location_status = 'desativada'
+            location_status = 'disabled'
         elif self.config['profile'] not in ('natural', 'curtains'):
-            location_status = 'perfil_sem_geolocalizacao'
+            location_status = 'profile_without_geolocation'
         elif not self.location:
-            location_status = 'erro_permissao' if self.location_error else 'aguardando_permissao'
+            location_status = 'permission_error' if self.location_error else 'awaiting_permission'
         elif self.weather:
-            location_status = 'ativa'
+            location_status = 'active'
         else:
-            location_status = 'consultando_clima' if not self.weather_error else 'clima_indisponivel'
+            location_status = 'checking_weather' if not self.weather_error else 'weather_unavailable'
         weather_state = None if not self.weather else {
             'cloud_cover': self.weather['cloud_cover'],
             'precipitation': self.weather['precipitation'],
@@ -308,7 +308,7 @@ class Service:
             elif name == 'SetProfile':
                 profile = values[0]
                 if profile not in PROFILE_SCHEDULES:
-                    raise ValueError('Perfil de brilho desconhecido.')
+                    raise ValueError('Unknown brightness profile.')
                 new_config = copy.deepcopy(self.config)
                 new_config['profile'] = profile
                 new_config['schedule'] = copy.deepcopy(new_config['profile_schedules'][profile])
@@ -320,7 +320,7 @@ class Service:
             elif name == 'SetBrightness':
                 level, seconds = values
                 if not 0 <= level <= 100 or not 1 <= seconds <= 86400:
-                    raise ValueError('Brilho: 0–100; duração: 1–86400 segundos.')
+                    raise ValueError('Brightness: 0–100; duration: 1–86400 seconds.')
                 self.override = level
                 self.override_until = time.time() + seconds
             elif name == 'SetLocationEnabled':
@@ -336,9 +336,9 @@ class Service:
             elif name == 'SetLocation':
                 latitude, longitude = values
                 if not self.config['location_enabled']:
-                    raise ValueError('Ative primeiro o uso de localização nas Preferências GNOME.')
+                    raise ValueError('First enable location in GNOME Preferences.')
                 if not -90 <= latitude <= 90 or not -180 <= longitude <= 180:
-                    raise ValueError('Coordenadas de localização inválidas.')
+                    raise ValueError('Invalid location coordinates.')
                 # GeoClue/portal requests city precision. Round to about 10 km
                 # before keeping it in memory or sending the point to the provider.
                 rounded = (round(latitude, 1), round(longitude, 1))
@@ -366,7 +366,7 @@ class Service:
             elif name == 'Rescan':
                 self.scan_due = 0
             else:
-                raise ValueError('Método desconhecido.')
+                raise ValueError('Unknown method.')
             self.generation += 1
             self.changed()
             self.tick()
@@ -387,7 +387,7 @@ class Service:
             error = ''
         except (OSError, ValueError, KeyError, TimeoutError) as exc:
             value = None
-            error = str(exc)[:300] or 'Não foi possível consultar o clima.'
+            error = str(exc)[:300] or 'Could not retrieve weather data.'
         GLib.idle_add(self.weather_finished, latitude, longitude, value, error)
 
     def weather_finished(self, latitude, longitude, value, error):
@@ -445,7 +445,7 @@ class Service:
                         result = ddc('--bus', monitor['bus'], 'getvcp', '10', '--brief')
                         match = re.search(r'VCP 10 C (\d+) (\d+)', result)
                         if not match or int(match[2]) <= 0:
-                            raise RuntimeError('Monitor não informa brilho DDC válido.')
+                            raise RuntimeError('Monitor did not report a valid DDC brightness value.')
                         monitor['raw'], monitor['maximum'] = int(match[1]), int(match[2])
                     # Skip stale queued writes after pause or a newer manual adjustment.
                     if desired is not None and generation == self.generation:
@@ -518,7 +518,7 @@ def main():
         method, params = 'SetProfile', GLib.Variant('(s)', (args.name,))
     elif args.command == 'brightness':
         if not 0 <= args.percent <= 100 or not 1 <= args.minutes <= 1440:
-            parser.error('Brilho: 0–100; minutos: 1–1440.')
+            parser.error('Brightness: 0–100; minutes: 1–1440.')
         method, params = 'SetBrightness', GLib.Variant('(iu)', (args.percent, args.minutes * 60))
     elif args.command == 'configure':
         value = validate(json.loads(args.file.read_text()))

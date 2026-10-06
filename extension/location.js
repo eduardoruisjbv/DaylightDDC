@@ -35,7 +35,7 @@ export class ApproxLocation {
                 Gio.DBusCallFlags.NONE, 5000, null);
             this._session = created.deepUnpack()[0];
         } catch (error) {
-            this._onError?.(`Portal de localização indisponível: ${error.message}`);
+            this._onError?.(`Location portal unavailable: ${error.message}`);
             return;
         }
 
@@ -51,7 +51,7 @@ export class ApproxLocation {
             }));
         this._subscriptions.push(connection.signal_subscribe(BUS, SESSION, 'Closed', this._session,
             null, Gio.DBusSignalFlags.NONE, () => {
-                this._onError?.('O acesso à localização foi revogado pelo sistema.');
+                this._onError?.('Location access was revoked by the system.');
                 this.stop();
             }));
 
@@ -62,7 +62,7 @@ export class ApproxLocation {
             null, Gio.DBusSignalFlags.NONE, (_conn, _sender, _path, _iface, _signal, params) => {
                 const [response] = params.deepUnpack();
                 if (response !== 0) {
-                    this._onError?.('A permissão de localização foi negada ou cancelada.');
+                    this._onError?.('Location permission was denied or cancelled.');
                     this.stop();
                     return;
                 }
@@ -80,7 +80,7 @@ export class ApproxLocation {
                 try {
                     conn.call_finish(result);
                 } catch (error) {
-                    this._onError?.(`Não foi possível solicitar a localização: ${error.message}`);
+                    this._onError?.(`Could not request location: ${error.message}`);
                     this.stop();
                 }
             });
