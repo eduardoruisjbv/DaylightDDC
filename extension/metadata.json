@@ -1,0 +1,7 @@
+{
+  "uuid": "daylight-ddc@local",
+  "name": "Daylight DDC",
+  "description": "Controls for the Daylight DDC service: schedule external monitor brightness through DDC/CI.",
+  "shell-version": ["45", "46", "47", "48", "49", "50"],
+  "version": 1
+}
