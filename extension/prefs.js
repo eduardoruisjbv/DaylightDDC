@@ -31,7 +31,7 @@ export default class Preferences extends ExtensionPreferences {
                 const automatic = new Adw.SwitchRow({title: 'Enable scheduled brightness', active: state.config.automatic});
                 group.add(automatic);
                 const locationGroup = new Adw.PreferencesGroup({title: 'Location and weather',
-                    description: 'Used by Natural and Closed Curtains to calculate sunrise/sunset; Natural also considers solar radiation and clouds.'});
+                    description: 'Used to calculate local sunrise and sunset; Natural rises from 0% to 100% at solar noon and returns to 0% at sunset.'});
                 page.add(locationGroup);
                 const locationRow = new Adw.SwitchRow({title: 'Allow approximate location',
                     subtitle: 'Disabled. Profiles continue using the configured schedules.',

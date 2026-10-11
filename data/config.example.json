@@ -2,14 +2,14 @@
   "automatic": false,
   "profile": "natural",
   "schedule": [
-    {"time": "04:30", "brightness": 12},
-    {"time": "06:00", "brightness": 84},
-    {"time": "18:54", "brightness": 84}
+    {"time": "06:00", "brightness": 0},
+    {"time": "12:00", "brightness": 100},
+    {"time": "18:00", "brightness": 0}
   ],
   "profile_schedules": {
     "natural": [
-      {"time": "04:30", "brightness": 12}, {"time": "06:00", "brightness": 84},
-      {"time": "18:54", "brightness": 84}
+      {"time": "06:00", "brightness": 0}, {"time": "12:00", "brightness": 100},
+      {"time": "18:00", "brightness": 0}
     ],
     "curtains": [
       {"time": "04:30", "brightness": 0}, {"time": "06:00", "brightness": 35},

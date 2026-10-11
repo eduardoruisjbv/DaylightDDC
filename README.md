@@ -4,9 +4,9 @@ Daylight DDC is a Linux service for scheduling external monitor brightness throu
 
 ## Features
 
-- Smooth, time-based brightness transitions, with a gradual adjustment of about 1% of the monitor's reported range per 30-second cycle.
+- Smooth, time-based brightness transitions, with faster catch-up after large differences and small steps near the scheduled target.
 - Natural and Curtains profiles, with optional approximate location for local sunrise and sunset calculations.
-- Optional weather-aware refinement for Natural using current solar radiation, cloud cover, and precipitation data from Open-Meteo.
+- Optional local weather information, including solar radiation, cloud cover, and precipitation from Open-Meteo.
 - An experimental Apple-like brightness profile. It adjusts brightness by time only; it does not sense ambient light or change color temperature like Apple True Tone.
 - A Custom profile, manual brightness override, monitor selection, and a command-line interface.
 - Location coordinates are kept in memory, rounded to approximately 10 km, and never written to disk by Daylight DDC.
@@ -60,12 +60,12 @@ gnome-extensions prefs daylight-ddc@local
 
 All profiles run in the main service. The GNOME extension is a controller and status view; disabling it does not stop the service.
 
-- **Natural** follows a daylight-shaped brightness schedule. With location permission, local sunrise and sunset adjust the schedule; current solar radiation gently refines it using weather data. Without location or network access, it uses the configured base curve.
+- **Natural** follows a smooth daylight curve from 0% at sunrise to 100% at solar noon and back to 0% at sunset. With location permission, it uses local sunrise and sunset; without solar data, it approximates them as 06:00, 12:00, and 18:00 local time. Weather details are shown separately and do not lower the 100% solar peak.
 - **Curtains** assumes a dark indoor environment and uses a lower brightness curve. Location can shift the curve with local sunrise and sunset, while keeping its dark-room intent.
 - **Apple-like (experimental)** provides a time-based brightness approximation only. It does not read ambient light or alter display color temperature.
 - **Custom** uses the brightness curve you configure.
 
-Schedules interpolate between configured points. The default Natural curve is 12% at 04:30 and 84% from 06:00 through 18:54. The default Curtains curve is 12% at 04:30, 40% from 06:00 through 18:00, 35% at 20:00, and 28% at 22:00. Configure curves to suit your display and environment: DDC percentages are not luminance measurements and vary by monitor.
+The fallback Natural reference points are 0% at 06:00, 100% at 12:00, and 0% at 18:00. The default Curtains curve is 12% at 04:30, 40% from 06:00 through 18:00, 35% at 20:00, and 28% at 22:00. DDC percentages are not luminance measurements and vary by monitor.
 
 ## Location and weather
 

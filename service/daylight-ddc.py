@@ -24,11 +24,11 @@ NAME = 'io.github.daylightddc.Service'
 OBJECT = '/io/github/daylightddc/Service'
 CONFIG = Path(os.environ.get('XDG_CONFIG_HOME', Path.home() / '.config')) / 'daylight-ddc/config.json'
 PROFILE_SCHEDULES = {
-    # Starting points only: monitor brightness percentages are not calibrated
-    # luminance, so users should tune them for their display and room.
+    # Fallback for Natural when local sunrise/sunset are unavailable.
+    # Monitor brightness percentages are not calibrated luminance.
     'natural': [
-        {'time': '04:30', 'brightness': 12}, {'time': '06:00', 'brightness': 84},
-        {'time': '18:54', 'brightness': 84}],
+        {'time': '06:00', 'brightness': 0}, {'time': '12:00', 'brightness': 100},
+        {'time': '18:00', 'brightness': 0}],
     'curtains': [
         {'time': '04:30', 'brightness': 0}, {'time': '06:00', 'brightness': 35},
         {'time': '18:00', 'brightness': 35}, {'time': '20:00', 'brightness': 35},
@@ -45,7 +45,7 @@ PROFILE_SCHEDULES = {
         {'time': '22:00', 'brightness': 34}, {'time': '00:00', 'brightness': 28}],
 }
 PROFILE_INFO = {
-    'natural': {'name': 'Natural', 'description': '84% daytime peak and 12% at night; with location enabled, follows local sunrise/sunset and gently dims in low solar radiation.'},
+    'natural': {'name': 'Natural', 'description': 'Rises from 0% at sunrise to 100% at solar noon and falls to 0% at sunset; without solar data, approximates local 06:00–12:00–18:00.'},
     'curtains': {'name': 'Closed Curtains', 'description': 'Dark profile: 0% minimum and 35% maximum; location adjusts sunrise/sunset.'},
     'apple_like': {'name': 'Apple-like (experimental)', 'description': 'Experimental time-based brightness approximation; does not use an ambient light sensor or change color temperature.'},
     'custom': {'name': 'Custom', 'description': 'Your own brightness schedule.'},
@@ -54,6 +54,9 @@ DEFAULT = {'automatic': False, 'profile': 'natural',
     'schedule': copy.deepcopy(PROFILE_SCHEDULES['natural']),
     'profile_schedules': copy.deepcopy(PROFILE_SCHEDULES), 'excluded_monitors': [],
     'location_enabled': False}
+LEGACY_NATURAL_SCHEDULE = [
+    {'time': '04:30', 'brightness': 12}, {'time': '06:00', 'brightness': 84},
+    {'time': '18:54', 'brightness': 84}]
 XML = '''<node><interface name="io.github.daylightddc.Service">
 <method name="GetState"><arg type="s" direction="out"/></method>
 <method name="SetConfig"><arg type="s" direction="in"/></method>
@@ -97,7 +100,11 @@ def validate(value):
         # Keep the existing curve under its honest label instead of calling it Natural.
         schedules['custom'] = validate_schedule(value['schedule'])
         profile = 'custom'
+    if schedules['natural'] == LEGACY_NATURAL_SCHEDULE:
+        schedules['natural'] = copy.deepcopy(PROFILE_SCHEDULES['natural'])
     schedule = validate_schedule(value['schedule'])
+    if profile == 'natural' and schedule == LEGACY_NATURAL_SCHEDULE:
+        schedule = copy.deepcopy(PROFILE_SCHEDULES['natural'])
     schedules[profile] = schedule
     if not isinstance(value['excluded_monitors'], list) or not all(
             isinstance(x, str) for x in value['excluded_monitors']):
@@ -136,14 +143,49 @@ def target(schedule, now):
     raise ValueError('Invalid schedule.')
 
 
+def local_solar_time(value, zone):
+    event = dt.datetime.fromisoformat(value)
+    return event.replace(tzinfo=zone) if event.tzinfo is None else event.astimezone(zone)
+
+
+def daylight_curve(progress):
+    if not 0 <= progress <= 1:
+        return 0
+    return round(100 * math.sin(math.pi * progress))
+
+
+def natural_target(weather, now):
+    """Follow a smooth 0–100–0 daylight curve centered on local solar noon."""
+    if weather:
+        try:
+            zone = ZoneInfo(weather['timezone'])
+            local_now = now.astimezone(zone) if now.tzinfo else now.replace(tzinfo=zone)
+            today = local_now.date()
+            sunrise = next(local_solar_time(value, zone) for value in weather['sunrise']
+                           if local_solar_time(value, zone).date() == today)
+            sunset = next(local_solar_time(value, zone) for value in weather['sunset']
+                          if local_solar_time(value, zone).date() == today)
+            sunrise_utc = sunrise.astimezone(dt.timezone.utc)
+            sunset_utc = sunset.astimezone(dt.timezone.utc)
+            now_utc = local_now.astimezone(dt.timezone.utc)
+            duration = (sunset_utc - sunrise_utc).total_seconds()
+            if duration > 0:
+                progress = (now_utc - sunrise_utc).total_seconds() / duration
+                return daylight_curve(progress)
+        except (KeyError, ValueError, TypeError, StopIteration):
+            pass
+    minutes = now.hour * 60 + now.minute + now.second / 60
+    return daylight_curve((minutes - 360) / 720)
+
+
 def solar_schedule(profile, weather, base_schedule):
-    """Use local sunrise/sunset from the weather response while preserving profile peaks."""
-    if profile not in ('natural', 'curtains') or not weather:
+    """Shift the Curtains profile using local sunrise and sunset."""
+    if profile != 'curtains' or not weather:
         return None
     try:
         zone = ZoneInfo(weather['timezone'])
-        sunrise = [dt.datetime.fromisoformat(x).astimezone(zone) for x in weather['sunrise']]
-        sunset = dt.datetime.fromisoformat(weather['sunset'][0]).astimezone(zone)
+        sunrise = [local_solar_time(x, zone) for x in weather['sunrise']]
+        sunset = local_solar_time(weather['sunset'][0], zone)
         low_today = sunrise[0] - dt.timedelta(minutes=90)
         low_tomorrow = sunrise[1] - dt.timedelta(minutes=90)
         floor = min(point['brightness'] for point in base_schedule)
@@ -238,18 +280,18 @@ class Service:
 
     def scheduled_target(self):
         profile = self.config['profile']
+        if profile == 'natural':
+            try:
+                now = dt.datetime.now(ZoneInfo(self.weather['timezone'])) if self.weather else dt.datetime.now()
+            except (KeyError, ValueError):
+                now = dt.datetime.now()
+            return natural_target(self.weather, now)
         schedule = solar_schedule(profile, self.weather, self.config['schedule']) or self.config['schedule']
         try:
             now = dt.datetime.now(ZoneInfo(self.weather['timezone'])) if self.weather else dt.datetime.now()
         except (KeyError, ValueError):
             now = dt.datetime.now()
         value = target(schedule, now)
-        if profile == 'natural' and self.weather:
-            # Weather radiation follows the daily daylight bell. Keep a gentle
-            # 85% floor so clouds/rain refine the curve without darkening it abruptly.
-            radiation = max(0.0, min(1.0, self.weather['shortwave_radiation'] / 800.0))
-            floor = min(point['brightness'] for point in self.config['schedule'])
-            value = round(floor + (value - floor) * (0.85 + 0.15 * radiation))
         return max(0, min(100, value))
 
     def state(self):
@@ -452,10 +494,14 @@ class Service:
                         goal = round(desired * monitor['maximum'] / 100)
                         raw = goal
                         if gradual:
-                            # At the 30-second scheduler cadence, cap each write
-                            # to about 1% of the monitor range to soften startup
-                            # and profile changes as well as the timed curve.
+                            # Catch up promptly after a manual OSD/DDC change or
+                            # reconnect, while keeping large transitions smooth.
+                            # A fixed 1% step at the 30-second cadence could take
+                            # over half an hour to recover a daylight-level gap.
+                            difference = goal - monitor['raw']
                             step = max(1, math.ceil(monitor['maximum'] / 100))
+                            if abs(difference) > step:
+                                step = max(step, math.ceil(monitor['maximum'] / 10))
                             raw = monitor['raw'] + max(-step, min(step, goal - monitor['raw']))
                         if raw != monitor['raw']:
                             ddc('--bus', monitor['bus'], 'setvcp', '10', raw)
