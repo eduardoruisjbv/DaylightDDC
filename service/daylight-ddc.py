@@ -30,8 +30,8 @@ PROFILE_SCHEDULES = {
         {'time': '04:30', 'brightness': 12}, {'time': '06:00', 'brightness': 84},
         {'time': '18:54', 'brightness': 84}],
     'curtains': [
-        {'time': '04:30', 'brightness': 12}, {'time': '06:00', 'brightness': 40},
-        {'time': '18:00', 'brightness': 40}, {'time': '20:00', 'brightness': 35},
+        {'time': '04:30', 'brightness': 0}, {'time': '06:00', 'brightness': 35},
+        {'time': '18:00', 'brightness': 35}, {'time': '20:00', 'brightness': 35},
         {'time': '22:00', 'brightness': 28}],
     'apple_like': [
         {'time': '06:00', 'brightness': 28}, {'time': '09:00', 'brightness': 44},
@@ -46,7 +46,7 @@ PROFILE_SCHEDULES = {
 }
 PROFILE_INFO = {
     'natural': {'name': 'Natural', 'description': '84% daytime peak and 12% at night; with location enabled, follows local sunrise/sunset and gently dims in low solar radiation.'},
-    'curtains': {'name': 'Closed Curtains', 'description': 'Assumes a dark indoor environment: 40% daytime peak, 35% and 28% at night, 12% minimum; location adjusts sunrise/sunset.'},
+    'curtains': {'name': 'Closed Curtains', 'description': 'Dark profile: 0% minimum and 35% maximum; location adjusts sunrise/sunset.'},
     'apple_like': {'name': 'Apple-like (experimental)', 'description': 'Experimental time-based brightness approximation; does not use an ambient light sensor or change color temperature.'},
     'custom': {'name': 'Custom', 'description': 'Your own brightness schedule.'},
 }
