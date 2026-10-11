@@ -1,9 +1,9 @@
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
-import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as QuickSettings from 'resource:///org/gnome/shell/ui/quickSettings.js';
+import * as Slider from 'resource:///org/gnome/shell/ui/slider.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import {connect, call} from './client.js';
 import {ApproxLocation} from './location.js';
@@ -43,7 +43,8 @@ class DaylightToggle extends QuickSettings.QuickMenuToggle {
         this.menu.addMenuItem(this.automatic);
 
         const row = new PopupMenu.PopupBaseMenuItem({activate: false});
-        this.slider = new St.Slider({value: 0.5, x_expand: true});
+        this.slider = new Slider.Slider(0.5);
+        this.slider.x_expand = true;
         this.slider.accessible_name = 'Monitor brightness';
         row.add_child(this.slider);
         this.menu.addMenuItem(row);
