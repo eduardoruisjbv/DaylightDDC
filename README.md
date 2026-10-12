@@ -1,6 +1,6 @@
 # Daylight DDC
 
-Daylight DDC is a Linux service for scheduling external monitor brightness through DDC/CI. Its background service works independently of GNOME; the GNOME Shell extension provides controls and preferences.
+Daylight DDC schedules external monitor brightness through DDC/CI. The Linux service works independently of GNOME, and an initial Intel macOS version is available in `macos/`.
 
 ## Features
 
@@ -28,6 +28,35 @@ ddcutil getvcp 10 --brief
 Check your distribution's guidance for access to `/dev/i2c-*` if these commands fail. Do not run the service as root.
 
 ## Install
+
+### macOS (Intel)
+
+The first macOS version targets Intel Macs and external DDC/CI monitors. Install Homebrew's `ddcctl`, then install DaylightDDC from the repository:
+
+```sh
+brew install ddcctl
+ddcctl
+git clone https://github.com/eduardoruisjbv/DaylightDDC.git
+cd DaylightDDC
+bash macos/install.sh
+```
+
+The installer registers a per-user LaunchAgent and leaves automatic changes disabled. Add each connected monitor with its own comfortable low and high DDC values. Determine those endpoints on that display's OSD; they do not need to match another display:
+
+```sh
+daylight-ddc monitor add 1 "Desk AOC" --min 8 --max 62
+daylight-ddc monitor add 2 "Side display" --min 16 --max 78
+daylight-ddc monitor list
+daylight-ddc brightness 3 --minutes 60
+daylight-ddc resume
+daylight-ddc profile natural
+```
+
+The shared control is a **relative position** from 0 to 100 within each monitor's configured range. For example, relative 3 maps to DDC 10 for the first example and DDC 18 for the second. This per-monitor endpoint calibration avoids assuming the same DDC percentage looks equally bright on different panels; DDC values still are not luminance measurements. Monitor numbers follow `ddcctl` and can change when displays are connected differently. `daylight-ddc brightness 3 --minutes 60` holds that relative position for one hour; `resume` returns to the schedule. `daylight-ddc status` reports configured ranges and the schedule target, not a live hardware reading.
+
+The macOS version uses the same Natural, Curtains, Apple-like (experimental), and Custom time curves. Location/weather integration and a graphical menu are not part of this initial macOS installer. `launchd` starts the scheduler at login; `daylight-ddc automatic on|off` controls whether it changes brightness.
+
+### Linux
 
 ```sh
 git clone https://github.com/eduardoruisjbv/DaylightDDC.git
@@ -110,6 +139,7 @@ Older configuration files are migrated when saved; their existing schedule is re
 
 - `service/daylight-ddc.py` contains the user service, scheduling logic, DDC operations, D-Bus API, and CLI.
 - `extension/` contains the GNOME panel control, preferences, D-Bus client, and location portal flow.
+- `macos/` contains the Intel macOS `ddcctl` client and a per-user LaunchAgent installer. The shared relative target maps through each configured display's own low/high DDC endpoints.
 - The service serializes `ddcutil` operations on a worker thread, uses a 30-second scheduling cycle, and rescans monitors every 120 seconds.
 - The session D-Bus name is `io.github.daylightddc.Service` at `/io/github/daylightddc/Service`. `GetState` returns JSON; `StateChanged` publishes state updates. Other desktops can use the CLI or implement a D-Bus client.
 

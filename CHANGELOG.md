@@ -2,6 +2,12 @@
 
 All notable project changes are documented here.
 
+## Unreleased
+
+- Add an Intel macOS installer and LaunchAgent using `ddcctl`.
+- Add per-monitor low/high DDC endpoints so shared brightness targets map to an individually calibrated relative range.
+- Document macOS setup, CLI controls, and platform limitations.
+
 ## 0.1.0 — 2026-10-06
 
 Initial public release.
