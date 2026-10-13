@@ -16,6 +16,7 @@ Daylight DDC schedules external monitor brightness through DDC/CI. The Linux ser
 - Linux with `ddcutil`, Python 3, PyGObject/Gio, a session D-Bus, and user-level systemd.
 - DDC/CI enabled in the monitor's on-screen menu and accessible to the current user without running the service as root.
 - Optional GNOME controls: GNOME Shell 45–50 and libadwaita.
+- Optional KDE controls: KDE Plasma 6, the Plasma5Support QML plugin, and Python PyGObject.
 - Optional location and weather features: a GNOME location portal, user consent, network access, and Open-Meteo availability.
 
 On Fedora/Nobara, install `ddcutil` and `python3-gobject`. Package names may differ on other distributions. Before installing, confirm the monitor is visible and readable:
@@ -64,13 +65,13 @@ cd DaylightDDC
 python3 install.py --start
 ```
 
-For a desktop without GNOME, install only the service:
+To skip installing GNOME controls:
 
 ```sh
 python3 install.py --start --without-extension
 ```
 
-The installer does not install system packages or enable the GNOME extension automatically. On first install, automatic scheduling is disabled; no brightness changes occur until you enable it or request a manual adjustment. Existing configuration is preserved during reinstalls.
+The installer does not install system packages or enable desktop widgets automatically. It installs GNOME and KDE controls by default; use `--without-extension` to skip GNOME and `--without-plasma` to skip KDE. On first install, automatic scheduling is disabled; no brightness changes occur until you enable it or request a manual adjustment. Existing configuration is preserved during reinstalls.
 
 To enable the user service at login later:
 
@@ -84,6 +85,8 @@ On GNOME, log out and back in so Shell discovers the newly installed extension, 
 gnome-extensions enable daylight-ddc@local
 gnome-extensions prefs daylight-ddc@local
 ```
+
+On KDE Plasma 6, install the package with `python3 install.py --start`, then add **Daylight DDC** from the panel's **Add Widgets** menu. If Plasma does not list it immediately, log out and back in. The widget shows monitor/service status and provides profile selection, automatic scheduling, a one-hour manual brightness slider, **Retomar automático**, and **Redetectar**. Its service and brightness schedule continue independently when the popup closes.
 
 ## Profiles
 
@@ -139,6 +142,7 @@ Older configuration files are migrated when saved; their existing schedule is re
 
 - `service/daylight-ddc.py` contains the user service, scheduling logic, DDC operations, D-Bus API, and CLI.
 - `extension/` contains the GNOME panel control, preferences, D-Bus client, and location portal flow.
+- `plasma/` contains the KDE Plasma 6 panel widget and its small D-Bus bridge; it controls the same Linux service.
 - `macos/` contains the Intel macOS `ddcctl` client and a per-user LaunchAgent installer. The shared relative target maps through each configured display's own low/high DDC endpoints.
 - The service serializes `ddcutil` operations on a worker thread, uses a 30-second scheduling cycle, and rescans monitors every 120 seconds.
 - The session D-Bus name is `io.github.daylightddc.Service` at `/io/github/daylightddc/Service`. `GetState` returns JSON; `StateChanged` publishes state updates. Other desktops can use the CLI or implement a D-Bus client.

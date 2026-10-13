@@ -10,7 +10,8 @@ import subprocess
 ROOT = Path(__file__).resolve().parent
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--start', action='store_true', help='Enable and start the user service (does not enable scheduling)')
-parser.add_argument('--without-extension', action='store_true', help='Install only the universal service and CLI')
+parser.add_argument('--without-extension', action='store_true', help='Skip installing the GNOME Shell extension')
+parser.add_argument('--without-plasma', action='store_true', help='Do not install the KDE Plasma widget')
 args = parser.parse_args()
 home = Path.home()
 data = Path(os.environ.get('XDG_DATA_HOME', home / '.local/share'))
@@ -43,6 +44,13 @@ bus.write_text('[D-BUS Service]\nName=io.github.daylightddc.Service\n'
 if not args.without_extension:
     extension = data / 'gnome-shell/extensions/daylight-ddc@local'
     shutil.copytree(ROOT / 'extension', extension, dirs_exist_ok=True)
+if not args.without_plasma:
+    plasmoid = data / 'plasma/plasmoids/io.github.daylightddc'
+    shutil.copytree(ROOT / 'plasma', plasmoid, dirs_exist_ok=True)
+    bridge = home / '.local/bin/daylight-ddc-plasma-bridge'
+    bridge.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(ROOT / 'plasma/contents/code/bridge.py', bridge)
+    bridge.chmod(0o755)
 subprocess.run(['systemctl', '--user', 'daemon-reload'], check=True)
 if args.start:
     subprocess.run(['systemctl', '--user', 'enable', '--now', 'daylight-ddc.service'], check=True)
@@ -50,3 +58,5 @@ print(f'Installed service and CLI: {launcher}')
 print('Scheduling starts disabled on first use; enable it with: daylight-ddc automatic on')
 if not args.without_extension:
     print('Enable GNOME controls after logging out/in: gnome-extensions enable daylight-ddc@local')
+if not args.without_plasma:
+    print('KDE Plasma widget installed: add “Daylight DDC” from the panel’s Add Widgets menu')

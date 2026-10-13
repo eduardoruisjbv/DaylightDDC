@@ -1,0 +1,15 @@
+{
+  "KPlugin": {
+    "Authors": [{"Name": "Daylight DDC contributors"}],
+    "Category": "System Information",
+    "Description": "Controle o brilho DDC/CI dos monitores pelo serviço Daylight DDC",
+    "Icon": "video-display",
+    "Id": "io.github.daylightddc",
+    "License": "GPL-3.0-or-later",
+    "Name": "Daylight DDC",
+    "Version": "1.0.0",
+    "Website": "https://github.com/eduardoruisjbv/DaylightDDC"
+  },
+  "X-Plasma-API-Minimum-Version": "6.0",
+  "KPackageStructure": "Plasma/Applet"
+}
