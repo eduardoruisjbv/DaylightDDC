@@ -4,9 +4,20 @@ All notable project changes are documented here.
 
 ## Unreleased
 
-- Add an Intel macOS installer and LaunchAgent using `ddcctl`.
-- Add per-monitor low/high DDC endpoints so shared brightness targets map to an individually calibrated relative range.
-- Document macOS setup, CLI controls, and platform limitations.
+## 0.2.0 — 2026-10-13
+
+- Add KDE Plasma 6 controls for profile selection, brightness, and automatic mode.
+- Add Intel macOS support with a `ddcctl`-based service, installer, and LaunchAgent.
+- Add individually calibrated low/high DDC endpoints for relative brightness.
+- Fix Natural brightness scheduling and use the native GNOME Quick Settings slider.
+- Improve the Linux installer and update the shipped Nobara configuration and translations.
+
+### Known limitations
+
+- Hardware support varies; DDC/CI access has been confirmed on one AOC monitor only.
+- KDE Plasma and macOS support need validation on additional hardware and systems.
+- GNOME extension compatibility is declared for versions 45–50 and needs validation per Shell version.
+- Location and weather features require GNOME portal consent, network access, and Open-Meteo availability.
 
 ## 0.1.0 — 2026-10-06
 
