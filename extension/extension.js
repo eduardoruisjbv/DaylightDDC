@@ -13,20 +13,20 @@ class DaylightToggle extends QuickSettings.QuickMenuToggle {
     _init() {
         super._init({
             title: 'Daylight DDC',
-            subtitle: 'Connecting to service…',
+            subtitle: 'Conectando ao serviço…',
             iconName: 'display-brightness-symbolic',
             toggleMode: false,
         });
 
         this.menu.setHeader('display-brightness-symbolic', 'Daylight DDC');
-        this.status = this.menu.addAction('Connecting to service…', () => {});
+        this.status = this.menu.addAction('Conectando ao serviço…', () => {});
         this.status.reactive = false;
 
-        this.profileMenu = new PopupMenu.PopupSubMenuMenuItem('Brightness profile', false);
+        this.profileMenu = new PopupMenu.PopupSubMenuMenuItem('Perfil de brilho', false);
         this.profileItems = {};
         for (const [id, label] of Object.entries({
-            natural: 'Natural', curtains: 'Closed Curtains',
-            apple_like: 'Apple-like (experimental)', custom: 'Custom',
+            natural: 'Natural', curtains: 'Cortinas fechadas',
+            apple_like: 'Apple-like (experimental)', custom: 'Personalizado',
         })) {
             const item = new PopupMenu.PopupMenuItem(label);
             item.connect('activate', () => this.extension._send('SetProfile', [id]));
@@ -35,7 +35,7 @@ class DaylightToggle extends QuickSettings.QuickMenuToggle {
         }
         this.menu.addMenuItem(this.profileMenu);
 
-        this.automatic = new PopupMenu.PopupSwitchMenuItem('Scheduled brightness', false);
+        this.automatic = new PopupMenu.PopupSwitchMenuItem('Brilho por horário', false);
         this.automatic.connect('toggled', (_item, enabled) => {
             if (!this.extension._updating)
                 this.extension._send('SetAutomatic', [enabled]);
@@ -45,7 +45,7 @@ class DaylightToggle extends QuickSettings.QuickMenuToggle {
         const row = new PopupMenu.PopupBaseMenuItem({activate: false});
         this.slider = new Slider.Slider(0.5);
         this.slider.x_expand = true;
-        this.slider.accessible_name = 'Monitor brightness';
+        this.slider.accessible_name = 'Brilho dos monitores';
         row.add_child(this.slider);
         this.menu.addMenuItem(row);
         this.slider.connect('notify::value', () => {
@@ -62,9 +62,9 @@ class DaylightToggle extends QuickSettings.QuickMenuToggle {
         });
 
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-        this.menu.addAction('Resume schedule', () => this.extension._send('Resume', []));
+        this.menu.addAction('Retomar programação', () => this.extension._send('Resume', []));
         this.menu.addAction('Detectar monitores', () => this.extension._send('Rescan', []));
-        this.menu.addAction('Configure schedule…', () => this.extension.openPreferences());
+        this.menu.addAction('Configurar horários…', () => this.extension.openPreferences());
     }
 
     setState(text, enabled) {
@@ -86,7 +86,7 @@ export default class DaylightDDC extends Extension {
             if (!this._alive)
                 return;
             if (error) {
-                this._toggle.setState('Service unavailable: install Daylight DDC', false);
+                this._toggle.setState('Serviço indisponível: instale Daylight DDC', false);
                 return;
             }
             this._signal = proxy.connectSignal('StateChanged', (_p, _sender, [json]) => this._render(json));
@@ -101,7 +101,7 @@ export default class DaylightDDC extends Extension {
             if (!this._alive)
                 return;
             if (error)
-                this._toggle.status.label.text = `Error: ${error.message}`;
+                this._toggle.status.label.text = `Falha: ${error.message}`;
             else
                 this._refresh();
         });
@@ -114,7 +114,7 @@ export default class DaylightDDC extends Extension {
             if (!this._alive)
                 return;
             if (error)
-                this._toggle.setState('Service unavailable: install Daylight DDC', false);
+                this._toggle.setState('Serviço indisponível: instale Daylight DDC', false);
             else
                 this._render(result[0]);
         });
@@ -126,20 +126,20 @@ export default class DaylightDDC extends Extension {
         const state = JSON.parse(json);
         const monitors = state.monitors.filter(m => !m.excluded && !m.error);
         const level = state.override_brightness ?? monitors[0]?.brightness ?? state.scheduled_brightness;
-        let text = monitors.length ? `${level}% · ${monitors.length} monitor(es)` : 'No DDC monitors available';
+        let text = monitors.length ? `${level}% · ${monitors.length} monitor(es)` : 'Nenhum monitor DDC disponível';
         if (state.override_brightness !== null)
-            text += ' · Manual for 1 hour';
+            text += ' · Manual por 1 hora';
         if (state.error || state.monitors.some(m => m.error))
-            text = 'DDC error · check Preferences/Logs';
+            text = 'Falha DDC · consulte Preferências/Logs';
 
         const profile = state.config.profile || 'natural';
         this._syncLocation(state);
         if (state.weather && ['natural', 'curtains'].includes(profile)) {
-            const rain = state.weather.precipitation > 0 ? ` · rain ${state.weather.precipitation} mm` : ' · no rain';
-            text += ` · clouds ${state.weather.cloud_cover}%${rain}`;
+            const rain = state.weather.precipitation > 0 ? ` · chuva ${state.weather.precipitation} mm` : ' · sem chuva';
+            text += ` · nuvens ${state.weather.cloud_cover}%${rain}`;
         }
         const info = state.available_profiles?.[profile];
-        this._toggle.profileMenu.label.text = `Brightness profile · ${info?.name || 'Natural'}`;
+        this._toggle.profileMenu.label.text = `Perfil de brilho · ${info?.name || 'Natural'}`;
         for (const [id, item] of Object.entries(this._toggle.profileItems))
             item.setOrnament(id === profile ? PopupMenu.Ornament.DOT : PopupMenu.Ornament.NONE);
 
@@ -168,7 +168,7 @@ export default class DaylightDDC extends Extension {
             this._locationClient.stop();
             this._locationClient = null;
             this._send('ClearLocation', []);
-        } else if (shouldUse && state.location_status === 'awaiting_permission') {
+        } else if (shouldUse && state.location_status === 'aguardando_permissao') {
             this._locationClient?.refresh();
         }
     }
