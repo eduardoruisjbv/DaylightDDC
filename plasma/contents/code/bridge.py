@@ -22,20 +22,23 @@ XML = f'''<node><interface name="{INTERFACE}">
 def main():
     method = sys.argv[1] if len(sys.argv) > 1 else 'GetState'
     values = sys.argv[2:]
+    # Build only the requested variant: argument-less methods such as GetState
+    # must not index into an empty argv.
     variants = {
-        'SetAutomatic': GLib.Variant('(b)', (values[0].lower() == 'true',)),
-        'SetProfile': GLib.Variant('(s)', (values[0],)),
-        'SetBrightness': GLib.Variant('(iu)', (int(values[0]), int(values[1]))),
+        'SetAutomatic': lambda: GLib.Variant('(b)', (values[0].lower() == 'true',)),
+        'SetProfile': lambda: GLib.Variant('(s)', (values[0],)),
+        'SetBrightness': lambda: GLib.Variant('(iu)', (int(values[0]), int(values[1]))),
     }
     try:
+        params = variants[method]() if method in variants else None
         connection = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-        result = connection.call_sync(NAME, PATH, INTERFACE, method, variants.get(method),
+        result = connection.call_sync(NAME, PATH, INTERFACE, method, params,
                                       GLib.VariantType.new('(s)') if method == 'GetState' else None,
                                       Gio.DBusCallFlags.NONE, 5000, None)
         if method == 'GetState':
             print(result.unpack()[0])
         else:
-            print('ok')
+            print(json.dumps({'ok': True}))
     except Exception as error:
         print(json.dumps({'error': str(error)}, ensure_ascii=False))
         return 1
