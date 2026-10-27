@@ -7,3 +7,10 @@ venv/
 build/
 dist/
 *.egg-info/
+
+# Graphify local build cache and machine-specific review state
+/graphify-out/cache/
+/graphify-out/**/cache/
+/graphify-out/.graphify_build_state.json
+/graphify-out/.graphify_labels*
+/graphify-out/.graphify_root

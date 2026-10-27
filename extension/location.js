@@ -57,8 +57,8 @@ export class ApproxLocation {
 
         const startToken = `start_${GLib.uuid_string_random().replaceAll('-', '')}`;
         const uniqueName = connection.get_unique_name().slice(1).replaceAll('.', '_');
-        const requestPath = `${ROOT}/request/_${uniqueName}/${startToken}`;
-        this._subscriptions.push(connection.signal_subscribe(BUS, REQUEST, 'Response', requestPath,
+        const requestPath = `${ROOT}/request/${uniqueName}/${startToken}`;
+        const subscribeResponse = path => connection.signal_subscribe(BUS, REQUEST, 'Response', path,
             null, Gio.DBusSignalFlags.NONE, (_conn, _sender, _path, _iface, _signal, params) => {
                 const [response] = params.deepUnpack();
                 if (response !== 0) {
@@ -68,7 +68,9 @@ export class ApproxLocation {
                 }
                 this._allowed = true;
                 this._publish();
-            }));
+            });
+        let responseSubscription = subscribeResponse(requestPath);
+        this._subscriptions.push(responseSubscription);
 
         const startOptions = new GLib.Variant('a{sv}', {
             handle_token: new GLib.Variant('s', startToken),
@@ -78,7 +80,13 @@ export class ApproxLocation {
             new GLib.VariantType('(o)'), Gio.DBusCallFlags.NONE, 10000, null,
             (conn, result) => {
                 try {
-                    conn.call_finish(result);
+                    const [returnedPath] = conn.call_finish(result).deepUnpack();
+                    if (this._session && returnedPath !== requestPath) {
+                        const index = this._subscriptions.indexOf(responseSubscription);
+                        connection.signal_unsubscribe(responseSubscription);
+                        responseSubscription = subscribeResponse(returnedPath);
+                        if (index >= 0) this._subscriptions[index] = responseSubscription;
+                    }
                 } catch (error) {
                     this._onError?.(`Não foi possível solicitar a localização: ${error.message}`);
                     this.stop();

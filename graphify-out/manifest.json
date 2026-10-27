@@ -1,0 +1,86 @@
+{
+  "data/config.example.json": {
+    "mtime": 1792956867.3705556,
+    "seen": 1793061329.812912,
+    "ast_hash": "5b1aacb01b0ad4575520180f2b0db966",
+    "semantic_hash": ""
+  },
+  "extension/client.js": {
+    "mtime": 1793061274.2584,
+    "seen": 1793061329.8129177,
+    "ast_hash": "89f1ad59be817bd2670aad3c833776a0",
+    "semantic_hash": ""
+  },
+  "extension/extension.js": {
+    "mtime": 1792956867.3711169,
+    "seen": 1793061329.8129208,
+    "ast_hash": "61a9ad30d38f42155644e46a4ecfc302",
+    "semantic_hash": ""
+  },
+  "extension/location.js": {
+    "mtime": 1793061263.6544077,
+    "seen": 1793061329.812923,
+    "ast_hash": "9f870f50fe43a4aa69545e6441d77cc4",
+    "semantic_hash": ""
+  },
+  "extension/metadata.json": {
+    "mtime": 1792956867.3711169,
+    "seen": 1793061329.8129246,
+    "ast_hash": "b7440a0338d8356afe5e1599423e6b12",
+    "semantic_hash": ""
+  },
+  "extension/prefs.js": {
+    "mtime": 1793061555.8652287,
+    "seen": 1793061574.9077435,
+    "ast_hash": "169e3acaf8b049b03682872f0cbaa61f",
+    "semantic_hash": ""
+  },
+  "install.py": {
+    "mtime": 1792956867.3711169,
+    "seen": 1793061329.8129282,
+    "ast_hash": "7dca84457821c77a67f8f295577067b3",
+    "semantic_hash": ""
+  },
+  "macos/daylight-ddc-macos.py": {
+    "mtime": 1792956867.3711169,
+    "seen": 1793061329.8129299,
+    "ast_hash": "e26ea7d86ca7c9b7a889074360c188f2",
+    "semantic_hash": ""
+  },
+  "macos/install.sh": {
+    "mtime": 1792956867.3715844,
+    "seen": 1793061329.8129315,
+    "ast_hash": "f5680ed6e53361c3f1eb38f0c8959240",
+    "semantic_hash": ""
+  },
+  "plasma/contents/code/bridge.py": {
+    "mtime": 1792956867.3716862,
+    "seen": 1793061329.8129332,
+    "ast_hash": "b04366fed392cd3246d325c6f98a8c80",
+    "semantic_hash": ""
+  },
+  "plasma/metadata.json": {
+    "mtime": 1792956867.3716862,
+    "seen": 1793061329.8129349,
+    "ast_hash": "f26e7ef99d8097e69c493bd12415a0a5",
+    "semantic_hash": ""
+  },
+  "service/daylight-ddc.py": {
+    "mtime": 1792956867.3716862,
+    "seen": 1793061329.8129368,
+    "ast_hash": "cb4ec41b925394cde17c2905fc8b9457",
+    "semantic_hash": ""
+  },
+  "CHANGELOG.md": {
+    "mtime": 1792956867.3705556,
+    "seen": 1793061329.8129382,
+    "ast_hash": "0c8367306b0cc9f43789230cda51e72c",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1792956867.3705556,
+    "seen": 1793061329.81294,
+    "ast_hash": "800ed4a5d4e410389c24cb1367fd7484",
+    "semantic_hash": ""
+  }
+}

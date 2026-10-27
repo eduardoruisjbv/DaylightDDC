@@ -19,7 +19,7 @@ export default class Preferences extends ExtensionPreferences {
             call(proxy, 'GetState', [], (result, failure) => {
                 if (closed) return;
                 if (failure) { status.title = 'Serviço indisponível'; status.subtitle = failure.message; return; }
-                const state = JSON.parse(result[0]);
+                let state = JSON.parse(result[0]);
                 status.title = 'Serviço conectado';
                 const profile = state.config.profile || 'natural';
                 const profileInfo = state.available_profiles?.[profile];
@@ -30,6 +30,8 @@ export default class Preferences extends ExtensionPreferences {
                 page.add(group);
                 const automatic = new Adw.SwitchRow({title: 'Ativar brilho por horário', active: state.config.automatic});
                 group.add(automatic);
+                let automaticDirty = false;
+                automatic.connect('notify::active', () => { if (!syncingState) automaticDirty = true; });
                 const locationGroup = new Adw.PreferencesGroup({title: 'Localização e condições do tempo',
                     description: 'Usado por Natural e Cortinas para calcular nascer/pôr do sol; Natural também considera a radiação solar e nuvens.'});
                 page.add(locationGroup);
@@ -66,6 +68,7 @@ export default class Preferences extends ExtensionPreferences {
                 locationRow.connect('notify::active', () => {
                     if (updatingLocation) return;
                     if (!locationRow.active) {
+                        state.config.location_enabled = false;
                         call(proxy, 'SetLocationEnabled', [false], (_reply, err) => {
                             status.title = err ? 'Não foi possível remover a localização' : 'Localização removida';
                             if (err) status.subtitle = err.message;
@@ -84,9 +87,11 @@ export default class Preferences extends ExtensionPreferences {
                     dialog.connect('response', (_dialog, response) => {
                         if (response !== 'allow') return;
                         updatingLocation = true;
+                        state.config.location_enabled = true;
                         call(proxy, 'SetLocationEnabled', [true], (_reply, err) => {
                             if (closed) return;
                             if (err) {
+                                state.config.location_enabled = false;
                                 updatingLocation = false;
                                 status.title = 'Não foi possível ativar localização';
                                 status.subtitle = err.message;
@@ -99,14 +104,10 @@ export default class Preferences extends ExtensionPreferences {
                     });
                     dialog.present();
                 });
-                const stateSignal = proxy.connectSignal('StateChanged', (_proxy, _sender, [json]) => {
-                    if (!closed) explainLocation(JSON.parse(json));
-                });
-                window.connect('close-request', () => {
-                    proxy.disconnectSignal(stateSignal);
-                    return false;
-                });
                 const rows = [];
+                let scheduleDirty = false;
+                let scheduleProfile = state.config.profile || 'natural';
+                let syncingState = false;
                 const addPoint = point => {
                     const row = new Adw.ActionRow({title: 'Horário e brilho (%)'});
                     const entry = new Gtk.Entry({text: point.time, max_length: 5, width_chars: 5,
@@ -121,7 +122,23 @@ export default class Preferences extends ExtensionPreferences {
                     group.add(row);
                     const item = {row, entry, spin};
                     rows.push(item);
-                    remove.connect('clicked', () => { group.remove(row); rows.splice(rows.indexOf(item), 1); });
+                    entry.connect('changed', () => { if (!syncingState) scheduleDirty = true; });
+                    spin.connect('value-changed', () => { if (!syncingState) scheduleDirty = true; });
+                    remove.connect('clicked', () => {
+                        group.remove(row);
+                        rows.splice(rows.indexOf(item), 1);
+                        scheduleDirty = true;
+                    });
+                };
+                const refreshSchedule = (schedule, profileName) => {
+                    const wasSyncing = syncingState;
+                    for (const item of rows) group.remove(item.row);
+                    rows.length = 0;
+                    syncingState = true;
+                    schedule.forEach(addPoint);
+                    syncingState = wasSyncing;
+                    scheduleProfile = profileName;
+                    scheduleDirty = false;
                 };
                 state.config.schedule.forEach(addPoint);
                 const actions = new Adw.ActionRow({title: 'Salvar para aplicar a programação'});
@@ -130,29 +147,75 @@ export default class Preferences extends ExtensionPreferences {
                 actions.add_suffix(add);
                 actions.add_suffix(save);
                 group.add(actions);
-                add.connect('clicked', () => addPoint({time: '12:00', brightness: 50}));
+                add.connect('clicked', () => {
+                    addPoint({time: '12:00', brightness: 50});
+                    scheduleDirty = true;
+                });
                 const monitors = new Adw.PreferencesGroup({title: 'Monitores', description: 'Os monitores habilitados seguem a mesma programação e controle manual.'});
                 page.add(monitors);
                 const exclusions = new Set(state.config.excluded_monitors);
+                let exclusionsDirty = false;
+                const monitorRows = [];
                 for (const monitor of state.monitors) {
                     const row = new Adw.SwitchRow({title: monitor.id, subtitle: monitor.error || `Barramento I²C ${monitor.bus}`,
                         active: !exclusions.has(monitor.id)});
                     row.connect('notify::active', () => {
+                        if (!syncingState) exclusionsDirty = true;
                         if (row.active) exclusions.delete(monitor.id);
                         else exclusions.add(monitor.id);
                     });
                     monitors.add(row);
+                    monitorRows.push({row, id: monitor.id});
                 }
+                const stateSignal = proxy.connectSignal('StateChanged', (_proxy, _sender, [json]) => {
+                    if (closed) return;
+                    const nextState = JSON.parse(json);
+                    const nextProfile = nextState.config.profile || 'natural';
+                    const profileChanged = nextProfile !== (state.config.profile || 'natural');
+                    const scheduleChanged = JSON.stringify(nextState.config.schedule) !== JSON.stringify(state.config.schedule);
+                    state = nextState;
+                    syncingState = true;
+                    if (!automaticDirty) automatic.active = state.config.automatic;
+                    explainLocation(state);
+                    if (!scheduleDirty && (profileChanged || scheduleChanged)) {
+                        refreshSchedule(state.config.schedule, nextProfile);
+                    }
+                    if (!exclusionsDirty) {
+                        exclusions.clear();
+                        for (const id of state.config.excluded_monitors) exclusions.add(id);
+                        for (const {row, id} of monitorRows) row.active = !exclusions.has(id);
+                    }
+                    syncingState = false;
+                });
+                window.connect('close-request', () => {
+                    proxy.disconnectSignal(stateSignal);
+                    return false;
+                });
                 save.connect('clicked', () => {
                     save.sensitive = false;
                     const config = {...state.config, automatic: automatic.active,
-                        schedule: rows.map(r => ({time: r.entry.text.trim(), brightness: r.spin.get_value_as_int()})),
                         excluded_monitors: [...exclusions]};
+                    const editedSchedule = rows.map(r => ({time: r.entry.text.trim(), brightness: r.spin.get_value_as_int()}));
+                    if (scheduleDirty && scheduleProfile !== (state.config.profile || 'natural')) {
+                        config.profile_schedules = {...(config.profile_schedules || {}), [scheduleProfile]: editedSchedule};
+                    } else {
+                        config.schedule = editedSchedule;
+                    }
                     call(proxy, 'SetConfig', [JSON.stringify(config)], (_reply, err) => {
                         if (closed) return;
                         save.sensitive = true;
                         status.title = err ? 'Não foi possível salvar' : 'Programação salva';
                         status.subtitle = err ? err.message : 'As alterações já estão disponíveis no serviço.';
+                        if (!err) {
+                            state.config = config;
+                            automaticDirty = false;
+                            exclusionsDirty = false;
+                            if (scheduleProfile !== (state.config.profile || 'natural')) {
+                                refreshSchedule(state.config.schedule, state.config.profile || 'natural');
+                            } else {
+                                scheduleDirty = false;
+                            }
+                        }
                     });
                 });
             });
