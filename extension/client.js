@@ -24,7 +24,7 @@ export function connect(callback) {
 
 export function call(proxy, method, args, callback) {
     const types = {SetConfig: '(s)', SetAutomatic: '(b)', SetProfile: '(s)', SetBrightness: '(iu)',
-        SetLocationEnabled: '(b)', SetLocation: '(dd)'};
+        SetLocationEnabled: '(b)', SetLocation: '(dd)', SetLocationError: '(s)'};
     proxy.call(method, types[method] ? new GLib.Variant(types[method], args) : null,
         Gio.DBusCallFlags.NONE, 5000, null, (source, result) => {
             try {
