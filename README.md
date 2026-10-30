@@ -2,6 +2,20 @@
 
 Daylight DDC schedules external monitor brightness through DDC/CI. The Linux service works independently of GNOME, and an initial Intel macOS version is available in `macos/`.
 
+## Brightness control flow
+
+```mermaid
+flowchart LR
+ A[Schedule & selected profile] --> B[Resolve target brightness]
+ C[Optional location & weather] --> B
+ D[Manual override] --> B
+ B --> E[Smooth transition controller]
+ E --> F[DDC/CI via ddcutil]
+ F --> G[External monitor brightness]
+```
+
+Location and weather are optional inputs; monitor control requires compatible DDC/CI hardware and permissions.
+
 ## Features
 
 - Smooth, time-based brightness transitions, with faster catch-up after large differences and small steps near the scheduled target.
